@@ -1,9 +1,7 @@
 # csi-driver-ssh
-csi driver via ssh shell command
+CSI driver via ssh shell command
 
-## Purpose
-- provide PV via shell script over ssh
-
+*Welcome to contribute!*
 
 ## Usage
 customize [deploy/manifest](https://github.com/jayl1e/csi-driver-ssh/tree/main/deploy/manifest) folder, usually you only edit to edit [controller plugin cmd arg](https://github.com/jayl1e/csi-driver-ssh/blob/main/deploy/manifest/plugin-controller.yaml#L128)
@@ -35,4 +33,4 @@ The exsiting alternatives have pitfalls:
 ## Next
 - add more test
 - support script for node plugin, not only NFS
-- support multiple server
+- support multiple servers
