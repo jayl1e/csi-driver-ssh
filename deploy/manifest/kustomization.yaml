@@ -1,0 +1,8 @@
+resources:
+  - https://github.com/kubernetes-csi/external-snapshotter/client/config/crd
+  - rbac.yaml
+  - plugin-controller.yaml
+  - plugin-node.yaml
+  - storageclass.yaml
+  - snapshotclass.yaml
+namespace: csi-ssh

@@ -1,0 +1,196 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-ssh-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csi-ssh-controller
+  template:
+    metadata:
+      labels:
+        app: csi-ssh-controller
+    spec:
+      serviceAccountName: csi-ssh-controller-sa
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: csi-provisioner
+          image: registry.k8s.io/sig-storage/csi-provisioner:v5.2.0
+          args:
+            - "-v=2"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election"
+            - "--leader-election-namespace=kube-system"
+            - "--extra-create-metadata=true"
+            - "--feature-gates=HonorPVReclaimPolicy=true"
+            - "--timeout=1200s"
+            - "--retry-interval-max=30m"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          resources:
+            limits:
+              memory: 400Mi
+            requests:
+              cpu: 10m
+              memory: 20Mi
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+        - name: liveness-probe
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.15.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --probe-timeout=3s
+            - --http-endpoint=localhost:25128
+            - --v=2
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            limits:
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 20Mi
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+        - name: csi-resizer
+          image: registry.k8s.io/sig-storage/csi-resizer:v1.13.1
+          args:
+            - "-csi-address=$(ADDRESS)"
+            - "-v=2"
+            - "-leader-election"
+            - "--leader-election-namespace=kube-system"
+            - '-handle-volume-inuse-error=false'
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            limits:
+              memory: 400Mi
+            requests:
+              cpu: 10m
+              memory: 20Mi
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+        - name: csi-snapshotter
+          image: registry.k8s.io/sig-storage/csi-snapshotter:v8.2.0
+          args:
+            - "--v=2"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election-namespace=kube-system"
+            - "--leader-election"
+            - "--timeout=1200s"
+            - "--retry-interval-max=30m"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 10m
+              memory: 20Mi
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+        - name: csi
+          image: jayl1e/csi-driver-ssh
+          command: ["/bin/csi-controller"]
+          args:
+            - run
+            - --endpoint
+            - $(CSI_ENDPOINT)
+            - --create-cmd
+            - |
+                target=/data/nfs/${CSI_VOLUME_ID}
+                if [ -n "${CSI_SRC_SNAPSHOT_ID}" ]; then
+                  btrfs subvolume snapshot /data/snapshots/${CSI_SRC_SNAPSHOT_ID} $target
+                elif [ -n "${CSI_SRC_VOLUME_ID}" ]; then
+                  btrfs subvolume snapshot /data/nfs/${CSI_SRC_VOLUME_ID} $target
+                else
+                  btrfs subvolume create $target
+                fi
+                btrfs qgroup limit ${CSI_CAPACITY_BYTES} $target
+                echo "csi-shell-output:volume_id=${CSI_VOLUME_ID}"
+                echo "csi-shell-output:capacity_bytes=${CSI_CAPACITY_BYTES}"
+                echo "csi-shell-output:nfs_server=$(NFS_SERVER)"
+                echo "csi-shell-output:nfs_path=/${CSI_VOLUME_ID}"
+                echo "csi-shell-output:data_source=${CSI_DATA_SOURCE}"
+            - --delete-cmd
+            - |
+                target=/data/nfs/${CSI_VOLUME_ID}
+                btrfs subvolume delete $target
+                echo "csi-shell-output:volume_id=${CSI_VOLUME_ID}"
+            - --expand-cmd
+            - |
+                target=/data/nfs/${CSI_VOLUME_ID}
+                btrfs qgroup limit ${CSI_CAPACITY_BYTES} $target
+                echo "csi-shell-output:capacity_bytes=${CSI_CAPACITY_BYTES}"
+            - --create-snapshot-cmd
+            - |
+                src=/data/nfs/${CSI_SRC_VOLUME_ID}
+                target=/data/snapshots/${CSI_SNAPSHOT_NAME}
+                snapshot_id=${CSI_SNAPSHOT_NAME}
+                btrfs subvolume snapshot -r $src $target
+                usage=$(btrfs subvolume show -b $target | grep 'Usage referenced' | awk '{print $3}')
+                if [[ ! "$usage" =~ ^[0-9]+$ ]]; then
+                  usage=0
+                fi
+                echo "csi-shell-output:snapshot_id=${snapshot_id}"
+                echo "csi-shell-output:capacity_bytes=${usage}"
+            - --delete-snapshot-cmd
+            - |
+                target=/data/snapshots/${CSI_SNAPSHOT_ID}
+                btrfs subvolume delete $target
+                echo "csi-shell-output:snapshot_id=${CSI_SNAPSHOT_ID}"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: NFS_SERVER
+              value: "127.0.0.1"
+            - name: SSH_SERVER
+              value: "127.0.0.1:22"
+            - name: SSH_USER
+              value: "root"
+            - name: SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ssh-secret
+                  key: SSH_KEY
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 10m
+              memory: 20Mi
+      volumes:
+        - name: socket-dir
+          emptyDir: {}
