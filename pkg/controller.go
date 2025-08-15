@@ -137,7 +137,7 @@ func (d *SshController) CreateVolume(ctx context.Context, req *csi.CreateVolumeR
 	if PopKey(shell_out, CSI_REP_DATA_SOURCE) == "" {
 		contentSource = nil
 	}
-
+	slog.InfoContext(ctx, "CreateVolume response", "volumeID", resVolumeID, "capacity", capacity)
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId: CSI_VOLUME_ID_PREFIX + resVolumeID,
@@ -234,6 +234,7 @@ func (d *SshController) ControllerExpandVolume(ctx context.Context, req *csi.Con
 		slog.ErrorContext(ctx, "Failed to parse capacity bytes", "id", volumeID, "err", err)
 		return nil, status.Errorf(codes.Internal, "Failed to parse capacity bytes: %s", err)
 	}
+	slog.InfoContext(ctx, "Volume expanded successfully", "volumeID", volumeID, "capacity", capacity)
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes: capacity,
 	}, nil
@@ -299,6 +300,7 @@ func (d *SshController) CreateSnapshot(ctx context.Context, req *csi.CreateSnaps
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to parse snapshot capacity: %s", err))
 	}
 
+	slog.InfoContext(ctx, "Snapshot created successfully", "snapshot_id", snap_id, "source_volume_id", volumeID, "capacity", capacity)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: &csi.Snapshot{
 			SnapshotId:     CSI_SNAPSHOT_ID_PREFIX + snap_id,
@@ -330,6 +332,7 @@ func (d *SshController) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnaps
 	if PopKey(result, CSI_REP_SNAPSHOT_ID) != snapshotID {
 		return nil, status.Error(codes.Internal, "Failed to delete snapshot: returned snapshot ID is empty or does not match requested ID")
 	}
+	slog.InfoContext(ctx, "Snapshot deleted successfully", "snapshot_id", snapshotID)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
