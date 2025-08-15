@@ -174,7 +174,7 @@ func (d *SshNodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUn
 }
 
 func (d *SshNodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	slog.Info("NodeGetCapabilities called")
+	slog.DebugContext(ctx, "NodeGetCapabilities called")
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
 			{
