@@ -19,7 +19,7 @@ I can not find a PV/PVC solution for my kubernetes cluster. I need:
 - snapshots
 - simple
 
-The exsiting alternatives:
+The exsiting alternatives have pitfalls:
 - The [official NFS CSI driver](https://github.com/kubernetes-csi/csi-driver-nfs) can not satisfy my requirements because it simply create sub dir over NFS and it can not execute script like set quota.
 - Vender specific CSI like [synology-csi](https://github.com/SynologyOpenSource/synology-csi) are limited to these specific vendors
 - Network storages like Ceph are too heavy
@@ -30,7 +30,9 @@ The exsiting alternatives:
 - ssh
 - shell hook
 - you can set quota, create snapshot, clone volume as you wish via your custome script
+- support btrfs, zfs, lvm, or basic dir over NFS
 
 ## Next
+- add more test
 - support script for node plugin, not only NFS
 - support multiple server
