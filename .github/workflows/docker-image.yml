@@ -24,3 +24,5 @@ jobs:
         platforms: linux/amd64,linux/arm64
         push: true
         tags: jayl1e/csi-driver-ssh:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
