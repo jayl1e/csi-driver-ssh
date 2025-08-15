@@ -17,8 +17,14 @@ I can not find a PV/PVC solution for my kubernetes cluster. I need:
 - central storage server, provide volume via net storage protocal like NFS
 - quota limit
 - snapshots
+- simple
 
-The [official NFS CSI driver](https://github.com/kubernetes-csi/csi-driver-nfs) can not satisfy my requirements because it simply create sub dir over NFS and it can not execute script like set quota.
+The exsiting alternatives:
+- The [official NFS CSI driver](https://github.com/kubernetes-csi/csi-driver-nfs) can not satisfy my requirements because it simply create sub dir over NFS and it can not execute script like set quota.
+- Vender specific CSI like [synology-csi](https://github.com/SynologyOpenSource/synology-csi) are limited to these specific vendors
+- Network storages like Ceph are too heavy
+- Local pv like [openebs](https://github.com/openebs)  are limited to node
+- Simple network storage like [openebs](https://github.com/openebs) and [longhorn](https://github.com/longhorn/longhorn) are limited within one k8s cluster
 
 ## Features
 - ssh
